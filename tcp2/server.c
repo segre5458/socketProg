@@ -6,17 +6,23 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <poll.h>
+#include <sys/ioctl.h>
 
 #include "common.h"
 
 #define BUF_SIZE 500
 #define BACKLOG_SIZE 5
+#define POLL_SIZE 10
 
 void loop(int sfd);
 
 int main(int argc, char *argv[])
 {
+    int nfds = 0;
     int sfd;
+    int val;
+    struct pollfd fds[POLL_SIZE];
 
     if (argc != 2)
     {
@@ -31,15 +37,43 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    val = 1;
+    ioctl(sfd, FIONBIO, &val);
+
     if (listen(sfd, BACKLOG_SIZE) == -1)
     {
         eprintf("could not listen\n");
         return 1;
     }
 
+    int ready;
     // TO DO: 1 vs n by POLL/EPOLL (or SELECT)
+    // polling non blocking 
+    // accept → blocking 
+    // nonblocking → ioctl accept 
+    // 通信あり or acceptあり or acceptなし
+    // acceptあり→fdsに登録nfdsを増やすnfdsは増えていく、保存だけ
+    // pollはfdsの中でcheck
+    // 通信あり→event見て
+    // acceptなし→サーバー自身の処理をする、解析等
     for (;;)
     {
+        ready = poll(fds, nfds, -1);
+        if (ready == -1)
+        {
+            perror("ready");
+            return 1;
+        }
+        for (int j = 0; j < nfds; j++)
+        {
+            if (fds[j].revents != 0)
+            {
+                printf("fd = &d; events: %s%s%s\n", fds[j].fd,
+                       (fds[j].events & POLLIN) ? "POLLIN" : "",
+                       (fds[j].revents & POLLHUP) ? "POLLHUP" : "",
+                       (fds[j].revents & POLLERR) ? "POLLERR" : "");
+            }
+        }
         loop(sfd);
     }
 }
