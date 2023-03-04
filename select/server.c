@@ -15,7 +15,6 @@
 
 #define BUF_SIZE 500
 #define BACKLOG_SIZE 5
-#define POLL_SIZE 10
 
 void loop(fd_set sfd, int maxfd, int fd1, int fd2);
 ssize_t recieve_buf(fd_set fds, int fd, char buf[], size_t n, int flags);
@@ -25,7 +24,6 @@ int main(int argc, char *argv[])
     int sfd1, sfd2;
     int maxfd;
     fd_set rfds;
-    // struct pollfd fds[POLL_SIZE];
 
     if (argc != 3)
     {
@@ -57,47 +55,13 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // val = 1;
-    // ioctl(sfd, FIONBIO, &val);
-
-    // if (listen(sfd1, BACKLOG_SIZE) == -1)
-    // {
-    //     eprintf("could not listen\n");
-    //     return 1;
-    // }
-
     FD_ZERO(&rfds);
     FD_SET(sfd1, &rfds);
     FD_SET(sfd2, &rfds);
     maxfd = sfd1 > sfd2 ? sfd1 : sfd2;
 
-    // TO DO: 1 vs n by POLL/EPOLL (or SELECT)
-    // polling non blocking
-    // accept → blocking
-    // nonblocking → ioctl accept
-    // 通信あり or acceptあり or acceptなし
-    // acceptあり→fdsに登録nfdsを増やすnfdsは増えていく、保存だけ
-    // pollはfdsの中でcheck
-    // 通信あり→event見て
-    // acceptなし→サーバー自身の処理をする、解析等
     for (;;)
     {
-        // ready = poll(fds, nfds, -1);
-        // if (ready == -1)
-        // {
-        //     perror("ready");
-        //     return 1;
-        // }
-        // for (int j = 0; j < nfds; j++)
-        // {
-        //     if (fds[j].revents != 0)
-        //     {
-        //         printf("fd = &d; events: %s%s%s\n", fds[j].fd,
-        //                (fds[j].events & POLLIN) ? "POLLIN" : "",
-        //                (fds[j].revents & POLLHUP) ? "POLLHUP" : "",
-        //                (fds[j].revents & POLLERR) ? "POLLERR" : "");
-        //     }
-        // }
         loop(rfds, maxfd, sfd1, sfd2);
     }
 }
@@ -174,8 +138,7 @@ ssize_t recieve_buf(fd_set fds, int fd, char buf[], size_t n, int flags)
             if (nread == -1)
             {
                 perror("read");
-                // continue;
-                return -1;
+                continue;
             }
             if (nread == 0)
             {
